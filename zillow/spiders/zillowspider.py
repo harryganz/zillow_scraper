@@ -12,20 +12,18 @@ class ZillowspiderSpider(scrapy.Spider):
     def __init__(self, max_pages = 10, *args, **kwargs):
         super(ZillowspiderSpider, self).__init__(*args, **kwargs)
         self.max_pages = max_pages
-        self.queryState = None
     
     def parse(self, response):
         encodedQuerySearchTerms = response.xpath('//script[@data-zrr-shared-data-key="mobileSearchPageStore"]//text()').re_first(r'^<!--(.*)-->$')
         if encodedQuerySearchTerms != None:
             querySearchTerms = json.loads(encodedQuerySearchTerms)
-            if self.queryState == None:
-                self.queryState = querySearchTerms.get('queryState', {})
+            queryState = querySearchTerms.get('queryState', {})
 
-            results_url = self.zillow_search_url_template.format(quote(json.dumps(self.queryState)))
+            results_url = self.zillow_search_url_template.format(quote(json.dumps(queryState)))
 
-            return response.follow(results_url, callback=self.parse_page_state)
+            return response.follow(results_url, callback=self.parse_page_state, cb_kwargs={'query_state': queryState})
     
-    def parse_page_state(self, response, page=1):
+    def parse_page_state(self, response, page=1, query_state=None):
         self.log('Parsing page ' + str(page))
         data = json.loads(response.text)
         next_page = (page + 1) if (page + 1) <= data.get('cat1', {}).get('searchList', {}).get('totalPages', 0) else None
@@ -33,16 +31,12 @@ class ZillowspiderSpider(scrapy.Spider):
             yield listing.get('hdpData', {}).get('homeInfo')
         
         if next_page != None and next_page <= self.max_pages:
-            queryState = self.queryState.copy()
-            queryState.update({"pagination": {"currentPage": next_page}})
+            nextQueryState = query_state.copy()
+            nextQueryState.update({"pagination": {"currentPage": next_page}})
 
-            next_page_url = self.zillow_search_url_template.format(quote(json.dumps(queryState)))
+            next_page_url = self.zillow_search_url_template.format(quote(json.dumps(nextQueryState)))
 
-            yield scrapy.Request(next_page_url, callback=self.parse_page_state, cb_kwargs={'page': next_page})
-
-
-
-    
+            yield scrapy.Request(next_page_url, callback=self.parse_page_state, cb_kwargs={'page': next_page, 'query_state': nextQueryState})
 
 
         
