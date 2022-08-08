@@ -1,17 +1,21 @@
 import scrapy
 import json
+import re
 from urllib.parse import quote
 
 
 class ZillowspiderSpider(scrapy.Spider):
     name = 'zillowspider'
     allowed_domains = ['zillow.com']
-    start_urls = ['https://zillow.com/sandy-springs-ga/sold/']
     zillow_search_url_template = 'https://zillow.com/search/GetSearchPageState.htm?searchQueryState={0}&wants=' + quote('{"cat1":["listResults"]}')
+    start_urls = []
 
-    def __init__(self, max_pages = 10, *args, **kwargs):
+    def __init__(self, max_pages = 10, city_names = None, *args, **kwargs):
         super(ZillowspiderSpider, self).__init__(*args, **kwargs)
         self.max_pages = max_pages
+        if city_names != None:
+            self.start_urls = ['https://zillow.com/{}/sold/'.format(self.__parse_city_name(name)) for name in city_names.split('|')]
+        self.log(', '.join(self.start_urls))
     
     def parse(self, response):
         encodedQuerySearchTerms = response.xpath('//script[@data-zrr-shared-data-key="mobileSearchPageStore"]//text()').re_first(r'^<!--(.*)-->$')
@@ -38,5 +42,8 @@ class ZillowspiderSpider(scrapy.Spider):
 
             yield scrapy.Request(next_page_url, callback=self.parse_page_state, cb_kwargs={'page': next_page, 'query_state': nextQueryState})
 
+    @staticmethod
+    def __parse_city_name(city_name):
+        stripped_city_names = re.split('\s+', city_name.strip().lower().replace(',',''))
+        return '-'.join(stripped_city_names)
 
-        
