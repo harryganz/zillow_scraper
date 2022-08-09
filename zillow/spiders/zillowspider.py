@@ -12,7 +12,7 @@ class ZillowspiderSpider(scrapy.Spider):
 
     def __init__(self, max_pages = 10, city_names = None, *args, **kwargs):
         super(ZillowspiderSpider, self).__init__(*args, **kwargs)
-        self.max_pages = max_pages
+        self.max_pages = int(max_pages)
         if city_names != None:
             self.start_urls = ['https://zillow.com/{}/sold/'.format(self.__parse_city_name(name)) for name in city_names.split('|')]
         self.log(', '.join(self.start_urls))
