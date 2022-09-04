@@ -29,10 +29,32 @@ class ZillowspiderSpider(scrapy.Spider):
     
     def parse_page_state(self, response, page=1, query_state=None):
         self.log('Parsing page ' + str(page))
+
         data = json.loads(response.text)
         next_page = (page + 1) if (page + 1) <= data.get('cat1', {}).get('searchList', {}).get('totalPages', 0) else None
         for listing in data.get('cat1', {}).get('searchResults', {}).get('listResults', []):
-            yield listing.get('hdpData', {}).get('homeInfo')
+            homeInfo = listing.get('hdpData', {}).get('homeInfo')
+            yield {
+                'zpid': homeInfo.get('zpid'),
+                'streetAddress': homeInfo.get('streetAddress'),
+                'zipcode': homeInfo.get('zipcode'),
+                'city': homeInfo.get('city'),
+                'state': homeInfo.get('state'),
+                'latitude': homeInfo.get('latitude'),
+                'longitude': homeInfo.get('longitude'),
+                'price': homeInfo.get('price'),
+                'dateSold': homeInfo.get('dateSold'),
+                'bathrooms': homeInfo.get('bathrooms'),
+                'bedrooms': homeInfo.get('bedrooms'),
+                'livingArea': homeInfo.get('livingArea'),
+                'homeType': homeInfo.get('homeType'),
+                'currency': homeInfo.get('currency'),
+                'country': homeInfo.get('country'),
+                'taxAssessedValue': homeInfo.get('taxAssessedValue'),
+                'lotAreaValue': homeInfo.get('lotAreaValue'),
+                'lotAreaUnit': homeInfo.get('lotAreaUnit')
+            }
+
         
         if next_page != None and next_page <= self.max_pages:
             nextQueryState = query_state.copy()
